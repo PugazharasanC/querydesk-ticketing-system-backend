@@ -216,6 +216,73 @@ http://localhost:8080
 
 ---
 
+# Docker Deployment
+
+## Build Docker Image
+
+```bash
+sudo docker build -t querydesk-backend .
+```
+
+---
+
+## Run Backend Container
+
+```bash
+sudo docker run -itd \
+  --env-file .env \
+  -p 8080:8080 \
+  querydesk-backend
+```
+
+---
+
+## View Running Containers
+
+```bash
+sudo docker ps
+```
+
+---
+
+## Stop Running Container
+
+```bash
+sudo docker stop <container-id>
+```
+
+---
+
+# Environment Configuration
+
+Create a `.env` file:
+
+```env
+SPRING_DATA_MONGODB_URI=
+JWT_SECRET=
+MAIL_USERNAME=
+MAIL_PASSWORD=
+FRONTEND_URL=
+```
+
+---
+
+# Production Backend URL
+
+```text
+http://3.110.110.100:8080
+```
+
+---
+
+# Docker Notes
+
+- Backend runs on port `8080`
+- Uses environment variables from `.env`
+- Stateless JWT authentication
+- MongoDB Atlas integration
+- SSE support for real-time notifications
+
 # Future Improvements
 
 - SLA Automation
