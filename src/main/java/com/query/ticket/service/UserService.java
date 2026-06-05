@@ -1,9 +1,8 @@
 package com.query.ticket.service;
 
-import com.query.ticket.dto.request.RegisterRequest;
+import com.query.ticket.dto.request.AdminCreateUserRequest;
 import com.query.ticket.dto.request.UpdateUserRequest;
 import com.query.ticket.dto.response.UserResponse;
-import com.query.ticket.enums.Role;
 import com.query.ticket.model.User;
 import com.query.ticket.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,53 +29,59 @@ public class UserService {
         return toResponse(findById(id));
     }
 
-    // Admin creates a user and sends them a temp password via email
-    public UserResponse createUser(RegisterRequest request) {
+    // Admin creates a user — password is optional, auto-generated if blank
+    public UserResponse createUser(AdminCreateUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
 
-        // Generate temp password if none provided
-        String tempPassword = request.getPassword() != null
+        String rawPassword = (request.getPassword() != null && !request.getPassword().isBlank())
                 ? request.getPassword()
                 : UUID.randomUUID().toString().substring(0, 10);
 
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(tempPassword))
-                .role(request.getRole() != null ? request.getRole() : Role.CUSTOMER)
+                .password(passwordEncoder.encode(rawPassword))
+                .role(request.getRole() != null ? request.getRole() : com.query.ticket.enums.Role.CUSTOMER)
                 .enabled(true)
                 .build();
 
         User saved = userRepository.save(user);
-
-        // Send welcome email with temp password
-        emailService.sendUserCreatedEmail(saved.getEmail(), saved.getName(), tempPassword);
-
+        emailService.sendUserCreatedEmail(saved.getEmail(), saved.getName(), rawPassword);
         return toResponse(saved);
     }
 
+    // Admin updates name, role, enabled status, teamId
     public UserResponse updateUser(String id, UpdateUserRequest request) {
         User user = findById(id);
-        Role oldRole = user.getRole();
+        com.query.ticket.enums.Role oldRole = user.getRole();
         boolean oldEnabled = user.isEnabled();
 
-        if (request.getName() != null) user.setName(request.getName());
-        if (request.getRole() != null) user.setRole(request.getRole());
-        if (request.getTeamId() != null) user.setTeamId(request.getTeamId());
+        if (request.getName() != null && !request.getName().isBlank()) {
+            user.setName(request.getName());
+        }
+        if (request.getRole() != null) {
+            user.setRole(request.getRole());
+        }
+        if (request.getTeamId() != null) {
+            user.setTeamId(request.getTeamId());
+        }
+        // Only update enabled if explicitly provided in request
         user.setEnabled(request.isEnabled());
 
         User saved = userRepository.save(user);
 
-        // Email on role change
+        // Notify on role change
         if (request.getRole() != null && !request.getRole().equals(oldRole)) {
-            emailService.sendRoleChangedEmail(saved.getEmail(), saved.getName(), saved.getRole().name());
+            emailService.sendRoleChangedEmail(saved.getEmail(), saved.getName(),
+                    saved.getRole().name());
         }
 
-        // Email on status change
+        // Notify on status change
         if (request.isEnabled() != oldEnabled) {
-            emailService.sendAccountStatusEmail(saved.getEmail(), saved.getName(), saved.isEnabled());
+            emailService.sendAccountStatusEmail(saved.getEmail(), saved.getName(),
+                    saved.isEnabled());
         }
 
         return toResponse(saved);

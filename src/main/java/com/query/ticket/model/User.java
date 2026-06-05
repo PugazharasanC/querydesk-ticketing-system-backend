@@ -34,7 +34,19 @@ public class User {
 
     private String teamId;
 
-    private boolean enabled;
+    @Builder.Default
+    private boolean enabled = true;
+
+    // ── Email verification ────────────────────────────────────────────────────
+
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    private String verificationOtp;          // 6-digit OTP
+
+    private LocalDateTime otpExpiresAt;      // 10 minute expiry
+
+    // ── Timestamps ────────────────────────────────────────────────────────────
 
     @CreatedDate
     private LocalDateTime createdAt;

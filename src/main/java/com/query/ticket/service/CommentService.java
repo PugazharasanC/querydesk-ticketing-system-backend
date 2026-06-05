@@ -4,7 +4,7 @@ import com.query.ticket.dto.request.AddCommentRequest;
 import com.query.ticket.dto.response.CommentResponse;
 import com.query.ticket.model.Comment;
 import com.query.ticket.repository.CommentRepository;
-import com.query.ticket.repository.TicketRepository;
+//import com.query.ticket.repository.TicketRepository;
 import com.query.ticket.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ import java.util.List;
 public class CommentService {
 
     private final CommentRepository commentRepository;
-    private final TicketRepository ticketRepository;
+//    private final TicketRepository ticketRepository;
     private final TicketValidationService validationService;
 
     public CommentResponse addComment(String ticketId, AddCommentRequest request, UserPrincipal currentUser) {

@@ -1,6 +1,6 @@
 package com.query.ticket.controller;
 
-import com.query.ticket.dto.request.RegisterRequest;
+import com.query.ticket.dto.request.AdminCreateUserRequest;
 import com.query.ticket.dto.request.UpdateUserRequest;
 import com.query.ticket.dto.response.UserResponse;
 import com.query.ticket.security.CurrentUser;
@@ -29,8 +29,8 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    @Operation(summary = "Get all users — Admin only")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Get all users")
     public ResponseEntity<Page<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -54,14 +54,16 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Admin creates a new user — sends welcome email with temp password")
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
+    @Operation(summary = "Admin creates a user — password optional, welcome email sent")
+    public ResponseEntity<UserResponse> createUser(
+            @Valid @RequestBody AdminCreateUserRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(userService.createUser(request));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update user role, name, status, or team")
+    @Operation(summary = "Update user name, role, enabled status, or team")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable String id,
             @RequestBody UpdateUserRequest request) {
@@ -70,7 +72,7 @@ public class UserController {
 
     @PatchMapping("/{id}/toggle-status")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Enable or disable a user account")
+    @Operation(summary = "Toggle user enabled/disabled")
     public ResponseEntity<UserResponse> toggleStatus(@PathVariable String id) {
         return ResponseEntity.ok(userService.toggleUserStatus(id));
     }

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -26,29 +27,42 @@ public class Ticket {
     private String id;
 
     private String title;
-
     private String description;
-
     private TicketStatus status;
-
     private TicketPriority priority;
 
-    // Who created the ticket (customer)
+    // Ownership
     private String createdBy;
     private String createdByName;
 
-    // Assigned agent
+    // Assignment
     private String assignedTo;
     private String assignedToName;
 
-    // Team assigned to
+    // Team
     private String teamId;
     private String teamName;
 
-    // Audit trail entries
+    // ── SLA tracking ──────────────────────────────────────────────────────────
+    @Indexed
+    private LocalDateTime slaDeadline;
+    private boolean slaBreached;
+    private LocalDateTime slaBreachedAt;
+
+    // ── Escalation tracking ───────────────────────────────────────────────────
+    @Builder.Default
+    private int escalationLevel = 0;           // 0=normal, 1=escalated, 2=re-escalated
+    private LocalDateTime escalatedAt;
+    private String escalationReason;
+
+    @Builder.Default
+    private List<EscalationEntry> escalationHistory = new ArrayList<>();
+
+    // ── Audit trail ───────────────────────────────────────────────────────────
     @Builder.Default
     private List<AuditEntry> auditTrail = new ArrayList<>();
 
+    // ── Timestamps ────────────────────────────────────────────────────────────
     @CreatedDate
     private LocalDateTime createdAt;
 
@@ -57,7 +71,8 @@ public class Ticket {
 
     private LocalDateTime resolvedAt;
 
-    // Embedded audit entry
+    // ── Embedded types ────────────────────────────────────────────────────────
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -68,5 +83,18 @@ public class Ticket {
         private String performedByName;
         private String note;
         private LocalDateTime timestamp;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EscalationEntry {
+        private int level;
+        private String escalatedBy;
+        private String escalatedByName;
+        private String reason;
+        private boolean autoEscalated;
+        private LocalDateTime escalatedAt;
     }
 }

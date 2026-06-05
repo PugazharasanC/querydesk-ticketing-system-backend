@@ -1,6 +1,7 @@
 package com.query.ticket.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -12,22 +13,40 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class SseEmitterService {
 
-    // One emitter per user — new connection replaces old one
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter createEmitter(String userId) {
-        // 5 minute timeout — client reconnects automatically
-        SseEmitter emitter = new SseEmitter(5 * 60 * 1000L);
+        // 3 minute timeout — client reconnects automatically via useSSE hook
+        SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
 
-        emitter.onCompletion(() -> emitters.remove(userId));
-        emitter.onTimeout(() -> emitters.remove(userId));
-        emitter.onError((e) -> emitters.remove(userId));
+        emitter.onCompletion(() -> {
+            emitters.remove(userId);
+            log.info("[SSE] Connection completed for user {}", userId);
+        });
+        emitter.onTimeout(() -> {
+            emitters.remove(userId);
+            log.info("[SSE] Connection timed out for user {}", userId);
+        });
+        emitter.onError((e) -> {
+            emitters.remove(userId);
+            log.warn("[SSE] Connection error for user {}: {}", userId, e.getMessage());
+        });
 
-        emitters.put(userId, emitter);
-        log.info("SSE connection opened for user: {}", userId);
+        // Replace old connection if user reconnects
+        SseEmitter old = emitters.put(userId, emitter);
+        if (old != null) {
+            try { old.complete(); } catch (Exception ignored) {}
+        }
+
         return emitter;
     }
 
+    /**
+     * Send event to a specific user.
+     * Uses @Async so it never blocks the calling thread (ticket save, etc.)
+     * and avoids Spring Security context propagation issues.
+     */
+    @Async("emailTaskExecutor")
     public void sendToUser(String userId, String eventName, Object data) {
         SseEmitter emitter = emitters.get(userId);
         if (emitter == null) return;
@@ -38,12 +57,16 @@ public class SseEmitterService {
                     .data(data));
         } catch (IOException e) {
             emitters.remove(userId);
-            log.warn("SSE send failed for user {}, connection removed", userId);
+            log.warn("[SSE] Send failed for user {}, removing emitter", userId);
+        } catch (Exception e) {
+            emitters.remove(userId);
+            log.warn("[SSE] Unexpected error for user {}: {}", userId, e.getMessage());
         }
     }
 
+    @Async("emailTaskExecutor")
     public void sendToAll(String eventName, Object data) {
-        emitters.forEach((userId, emitter) -> sendToUser(userId, eventName, data));
+        emitters.keySet().forEach(userId -> sendToUser(userId, eventName, data));
     }
 
     public boolean isConnected(String userId) {
